@@ -12,24 +12,40 @@ Overview
 The GNC stack combines an offline optimal reference with an online convex replanner:
 
 - Offline guidance: a four-phase fuel-optimal trajectory (ascent, hover, descent), transcribed by Hermite-Simpson collocation and solved with ICLOCS2 / IPOPT.
+  
 - Online guidance (Mode B): a sequential convex programming (SCP) model predictive controller with lossless convexification (LCvx) of the terminal thrust constraint, built with YALMIP and solved with ECOS.
+  
 - Dispatcher: a five-flag validity-gated, two-mode dispatcher with a three-strike fallback latch that arbitrates between the offline reference (Mode A) and the online replanner (Mode B).
+  
 - Navigation: a multiplicative extended Kalman filter (MEKF) with 17 nominal states and 16 error states.
+  
 - Control: a mass-gain-scheduled linear-quadratic-integral (LQI) attitude regulator.
+  
 - Plant: a 14-state quaternion 6-DoF vehicle model, verified against seven analytical benchmarks.
 
 
 Repository structure
+
 Folder	Contents
+
 offline/	ICLOCS2 four-phase optimal control problem: driver script, per-phase problem, dynamics and settings files
+
 guidance/	Online guidance: SCP-MPC with LCvx (SOCP build, SCP iteration, MPC solve)
+
 nav/	State estimation (MEKF)
+
 control/	Attitude control and thrust allocation
+
 actuators/	TVC servo and throttle valve models
+
 plant/	14-state quaternion 6-DoF vehicle model
+
 sensors/	Sensor models
+
 scheduler/	Mode dispatcher and scheduling logic
+
 sim/	Closed-loop simulation
+
 tests/	Verification and unit test scripts (Mode B steps, closed-loop descent, and so on)
 
 
