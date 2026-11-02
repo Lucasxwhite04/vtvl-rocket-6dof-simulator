@@ -49,7 +49,7 @@ Add this repository to the MATLAB path, including subfolders: addpath(genpath(pw
 
 Thesis
 
-The full dissertation (PDF):
+The full dissertation (PDF): [WHITE_Thesis.pdf](https://github.com/user-attachments/files/34282388/WHITE_Thesis.pdf)
 
 Acknowledgements
 Supervisor: Dr Yuanbo Nie, University of Sheffield
