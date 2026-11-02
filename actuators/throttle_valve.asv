@@ -1,0 +1,68 @@
+function [T_act, valve_out] = throttle_valve(T_cmd, valve_in, dt, params)
+% THROTTLE_VALVE  First-order throttle valve dynamics with rate limiting.
+%
+% Models the thrust command path as a first-order lag with:
+%   - Time constant  tau   = 0.05 s   (20 Hz bandwidth — typical solenoid/servo valve)
+%   - Rate limit     dT/dt = (Tmax-Tmin)/0.1 s  (full-range slew in 100 ms)
+%   - Output clamp   [Tmin, Tmax]  from params
+%
+% The discrete first-order update (Euler, sufficient at 200 Hz) is:
+%
+%   T_act(k+1) = T_act(k) + (dt/tau) * (T_cmd_rl(k) - T_act(k))
+%
+% where T_cmd_rl is the rate-limited command.
+%
+% Note on Tmin:  The engine cannot be commanded below Tmin (deep throttle
+% floor) while lit.  If T_cmd = 0 the engine is off; any nonzero command
+% is clamped to [Tmin, Tmax].  This step does NOT model ignition/cutoff
+% transients — that is handled by the phase scheduler.
+%
+% Inputs:
+%   T_cmd      (N)     commanded thrust magnitude from guidance
+%   valve_in   struct  persistent state: {T_act, T_prev}
+%   dt         (s)     timestep
+%   params     struct  from plant_params() — uses Tmin, Tmax
+%
+% Outputs:
+%   T_act      (N)     actual thrust magnitude delivered to plant
+%   valve_out  struct  updated persistent state
+
+% ---- Valve parameters -----------------------------------------------
+tau       = 0.05;                            % first-order time constant (s)
+rate_lim = 1500;                             % N/s — maximum thrust slew rate
+
+% ---- Rate-limit the commanded thrust --------------------------------
+delta     = T_cmd - valve_in.T_prev;
+max_delta = rate_lim * dt;
+delta_rl  = clamp(delta, -max_delta, max_delta);
+T_cmd_rl  = valve_in.T_prev + delta_rl;
+
+% ---- Position clamp: enforce [Tmin, Tmax] on the rate-lim'd command -
+% Allow exactly 0 (engine off).  Any nonzero command must be >= Tmin.
+if T_cmd_rl > 0
+    T_cmd_rl = clamp(T_cmd_rl, params.Tmin, params.Tmax);
+end
+
+% ---- First-order lag update -----------------------------------------
+alpha_filt = dt / tau;                             % filter coefficient
+T_new      = valve_in.T_act + alpha_filt * (T_cmd_rl - valve_in.T_act);
+
+% ---- Output clamp (physical limit) ----------------------------------
+% Key off T_cmd, NOT T_new — T_new is always positive while decaying,
+% so clamping on T_new > 0 would permanently floor to Tmin on engine cutoff.
+if T_cmd > 0
+    T_new = clamp(T_new, params.Tmin, params.Tmax);
+end
+
+T_act = T_new;
+
+% ---- Pack output state ----------------------------------------------
+valve_out.T_act  = T_act;
+valve_out.T_prev = T_cmd_rl;   % store rate-lim'd cmd as reference for next step
+
+end
+
+
+function y = clamp(x, lo, hi)
+    y = max(lo, min(hi, x));
+end
